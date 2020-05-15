@@ -29,7 +29,7 @@ class EventStoreStoredEventRepository implements StoredEventRepository
 
     protected $category;
 
-    public function __construct($category)
+    public function __construct($category = null)
     {
         $this->category = $category;
     }
