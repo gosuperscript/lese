@@ -96,8 +96,7 @@ class EventStoreStoredEventRepository implements StoredEventRepository
             new UserCredentials('admin', 'changeit'),
         );
 
-        $emptyModel = new class extends Model {
-        };
+        $emptyModel = new class extends Model { };
         $model = new $emptyModel();
         $model->meta_data = $metadata;
 

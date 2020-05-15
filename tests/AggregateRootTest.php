@@ -35,42 +35,6 @@ class AggregateRootTest extends TestCase
     }
 
     /** @test */
-    public function when_applying_events_it_increases_the_version_number()
-    {
-        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregateRoot $aggregateRoot */
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
-
-        $aggregateRoot
-            ->addMoney(100)
-            ->addMoney(100)
-            ->addMoney(100);
-
-        $this->assertEquals(3, $aggregateRoot->aggregateVersion);
-    }
-
-    /** @test */
-    public function snapshotting_stores_public_properties_and_version_number()
-    {
-        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregateRoot $aggregateRoot */
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
-
-        $aggregateRoot
-            ->addMoney(100)
-            ->addMoney(100)
-            ->addMoney(100);
-
-        $this->assertEquals(0, EloquentSnapshot::count());
-
-        $aggregateRoot->snapshot();
-
-        $this->assertEquals(1, EloquentSnapshot::count());
-        tap(EloquentSnapshot::first(), function (EloquentSnapshot $snapshot) {
-            $this->assertEquals(300, $snapshot->state['balance']);
-            $this->assertEquals(3, $snapshot->aggregate_version);
-        });
-    }
-
-    /** @test */
     public function restoring_an_aggregate_root_with_a_snapshot_restores_public_properties()
     {
         /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregateRoot $aggregateRoot */
@@ -85,7 +49,7 @@ class AggregateRootTest extends TestCase
 
         $aggregateRootRetrieved = AccountAggregateRoot::retrieve($this->aggregateUuid);
 
-        $this->assertEquals(3, $aggregateRootRetrieved->aggregateVersion);
+        $this->assertEquals(3, $aggregateRootRetrieved->aggregateVersion());
         $this->assertEquals(300, $aggregateRootRetrieved->balance);
     }
 
@@ -106,7 +70,7 @@ class AggregateRootTest extends TestCase
 
         $aggregateRootRetrieved = AccountAggregateRoot::retrieve($this->aggregateUuid);
 
-        $this->assertEquals(4, $aggregateRootRetrieved->aggregateVersion);
+        $this->assertEquals(4, $aggregateRootRetrieved->aggregateVersion());
         $this->assertEquals(400, $aggregateRootRetrieved->balance);
     }
 
@@ -125,112 +89,5 @@ class AggregateRootTest extends TestCase
         $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
 
         $this->assertEquals(100, $aggregateRoot->balance);
-    }
-
-    /** @test */
-    public function when_retrieving_an_aggregate_root_all_events_will_be_replayed_to_it_with_the_stored_event_repository_specified()
-    {
-        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregateRootWithStoredEventRepositorySpecified $aggregateRoot */
-        $aggregateRoot = AccountAggregateRootWithStoredEventRepositorySpecified::retrieve($this->aggregateUuid);
-
-        $aggregateRoot
-            ->addMoney(100)
-            ->addMoney(100)
-            ->addMoney(100);
-
-        $aggregateRoot->persist();
-
-        $this->assertEquals(0, EloquentStoredEvent::count());
-        $this->assertEquals(3, OtherEloquentStoredEvent::count());
-
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
-        $this->assertEquals(0, $aggregateRoot->balance);
-
-        $aggregateRoot = AccountAggregateRootWithStoredEventRepositorySpecified::retrieve($this->aggregateUuid);
-        $this->assertEquals(300, $aggregateRoot->balance);
-    }
-
-    /** @test */
-    public function a_recorded_event_immediately_gets_applied()
-    {
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
-        $aggregateRoot->addMoney(123);
-
-        $this->assertEquals(123, $aggregateRoot->balance);
-    }
-
-    /** @test */
-    public function projectors_will_get_called_when_an_aggregate_root_is_persisted()
-    {
-        Projectionist::addProjector(AccountProjector::class);
-
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
-
-        $aggregateRoot->addMoney(123);
-
-        $accounts = Account::get();
-        $this->assertCount(0, $accounts);
-
-        $aggregateRoot->persist();
-
-        $accounts = Account::get();
-        $this->assertCount(1, $accounts);
-
-        $account = Account::first();
-        $this->assertEquals(123, $account->amount);
-        $this->assertEquals($this->aggregateUuid, $account->uuid);
-    }
-
-    /** @test */
-    public function reactors_will_get_called_when_an_aggregate_root_is_persisted()
-    {
-        Projectionist::addReactor(SendMailReactor::class);
-
-        Mail::fake();
-
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
-
-        $aggregateRoot->addMoney(123);
-
-        Mail::assertNothingSent();
-
-        $aggregateRoot->persist();
-
-        Mail::assertSent(MoneyAddedMailable::class, function (MoneyAddedMailable $mailable) {
-            $this->assertEquals($this->aggregateUuid, $mailable->aggregateUuid);
-            $this->assertEquals(123, $mailable->amount);
-
-            return true;
-        });
-    }
-
-    /** @test */
-    public function it_will_throw_an_exception_if_the_latest_stored_version_id_is_not_what_we_expect()
-    {
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
-        $aggregateRoot->addMoney(100);
-
-        $aggregateRootInAnotherRequest = AccountAggregateRoot::retrieve($this->aggregateUuid);
-        $aggregateRootInAnotherRequest->addMoney(100);
-        $aggregateRootInAnotherRequest->persist();
-
-        $this->expectException(CouldNotPersistAggregate::class);
-        $aggregateRoot->persist();
-    }
-
-    /** @test */
-    public function it_can_allow_to_be_persisted_from_concurrent_events()
-    {
-        $aggregateRoot = AccountAggregateRootThatAllowsConcurrency::retrieve($this->aggregateUuid);
-        $aggregateRoot->addMoney(100);
-
-        $aggregateRootInAnotherRequest = AccountAggregateRootThatAllowsConcurrency::retrieve($this->aggregateUuid);
-        $aggregateRootInAnotherRequest->addMoney(100);
-        $aggregateRootInAnotherRequest->persist();
-
-        /** This line will now not throw an exception */
-        $aggregateRoot->persist();
-
-        $this->assertTestPassed();
     }
 }
