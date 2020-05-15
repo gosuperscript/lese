@@ -22,6 +22,7 @@ use Spatie\SchemalessAttributes\SchemalessAttributes;
 use Illuminate\Database\Eloquent\Model;
 use Prooph\EventStore\Internal\Consts;
 use Illuminate\Support\Str;
+use Spatie\EventSourcing\Exceptions\InvalidStoredEvent;
 
 class EventStoreStoredEventRepository implements StoredEventRepository
 {
@@ -39,11 +40,54 @@ class EventStoreStoredEventRepository implements StoredEventRepository
         return $this->retrieveAllAfterVersion(0, $uuid);
     }
 
+    /**
+     * @todo Support a stream to read from instead of $all
+     * @todo LazyCollection and paginate?
+     */
     public function retrieveAllStartingFrom(int $startingFrom, string $uuid = null): LazyCollection
     {
-        throw new BadMethodCallException('EventStore IDs are UUIDs');
+        throw_if($startingFrom > 0, new InvalidArgumentException('Must start from 0 for $all'));
+
+        $connection = EventStoreConnectionFactory::create();
+
+        $slice = $connection->readStreamEventsForward(
+            '$ce-account',
+            $startingFrom,
+            Consts::MAX_READ_SIZE,
+            true,
+            new UserCredentials('admin', 'changeit'),
+        );
+
+        return LazyCollection::make(function () use ($slice) {
+            foreach ($slice->events() as $event) {
+                $emptyModel = new class extends Model {
+                };
+                $model = new $emptyModel();
+                $model->meta_data = $event->event()->metadata() ?: null;
+
+                // yield 1;
+                try {
+                    yield new StoredEvent([
+                        'id' => $event->originalEventNumber(),
+                        'event_properties' => $event->event()->data(),
+                        'aggregate_uuid' => Str::before($event->originalStreamName(), '-'), // @todo remove $ce- so this works
+                        'event_class' => $event->event()->eventType(),
+                        'meta_data' => new SchemalessAttributes($model, 'meta_data'),
+                        'created_at' => $event->event()->created()->format(DateTimeInterface::ATOM),
+                    ]);
+
+                    dump('event successful');
+                }
+                catch (InvalidStoredEvent $e) {
+                    // dump($e);
+                }
+            }
+        });
     }
 
+    /**
+     * * @todo LazyCollection and paginate?
+     */
     public function retrieveAllAfterVersion(int $aggregateVersion, string $aggregateUuid): LazyCollection
     {
         $connection = EventStoreConnectionFactory::create();
@@ -78,7 +122,18 @@ class EventStoreStoredEventRepository implements StoredEventRepository
 
     public function countAllStartingFrom(int $startingFrom, string $uuid = null): int
     {
-        throw new BadMethodCallException('EventStore IDs are UUIDs');
+        $connection = EventStoreConnectionFactory::create();
+
+        $slice = $connection->readAllEventsBackward(
+            Position::headOfTf(),
+            1,
+            true,
+            new UserCredentials('admin', 'changeit'),
+        );
+
+        $lastEventNumber = $slice->events()[0]->event()->eventNumber();
+
+        return $lastEventNumber - $startingFrom;
     }
 
     public function persist(ShouldBeStored $event, string $uuid = null, int $aggregateVersion = null): StoredEvent
