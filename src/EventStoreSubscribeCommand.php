@@ -28,7 +28,7 @@ use Spatie\SchemalessAttributes\SchemalessAttributes;
 
 class EventStoreSubscribeCommand extends Command
 {
-    protected $signature = 'event-sourcing:subscribe {--group=} {--stream=}';
+    protected $signature = 'event-sourcing:subscribe';
 
     protected $description = 'Subscribe to a persistent subscription';
 
@@ -49,15 +49,17 @@ class EventStoreSubscribeCommand extends Command
 
             yield $connection->connectAsync();
 
-            yield $connection->connectToPersistentSubscriptionAsync(
-                $this->option('stream'),
-                $this->option('group'),
-                new OnEvent(),
-                new OnDropped(),
-                10,
-                true,
-                new UserCredentials('admin', 'changeit')
-            );
+            foreach (config('eventstore.subscription_streams') as $stream) {
+                yield $connection->connectToPersistentSubscriptionAsync(
+                    $stream,
+                    config('eventstore.group'),
+                    new OnEvent(),
+                    new OnDropped(),
+                    10,
+                    true,
+                    new UserCredentials('admin', 'changeit')
+                );
+            }
         });
     }
 }
