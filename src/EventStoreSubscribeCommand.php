@@ -6,6 +6,8 @@ use Amp\Loop;
 use Amp\Promise;
 use Amp\Success;
 use DateTimeInterface;
+use DigitalRisks\Lese\Handlers\OnEvent;
+use DigitalRisks\Lese\Handlers\OnDropped;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
 use Prooph\EventStore\Async\EventAppearedOnPersistentSubscription;
@@ -23,39 +25,6 @@ use Throwable;
 use Illuminate\Support\Str;
 use Spatie\EventSourcing\StoredEvent;
 use Spatie\SchemalessAttributes\SchemalessAttributes;
-
-class OnEvent implements EventAppearedOnPersistentSubscription
-{
-    public function __invoke(EventStorePersistentSubscription $subscription, ResolvedEvent $resolvedEvent, ?int $retryCount = null): Promise
-    {
-        $event = $resolvedEvent->event();
-
-        $metaModel = new StubModel(['meta_data' => $event->metadata() ?: null]);
-
-        $storedEvent = new StoredEvent([
-            'id' => $event->eventNumber(),
-            'event_properties' => $event->data(),
-            'aggregate_uuid' => Str::before($event->eventStreamId(), '-'), // @todo remove $ce- so this works
-            'event_class' => $event->eventType(),
-            'meta_data' => new SchemalessAttributes($metaModel, 'meta_data'),
-            'created_at' => $event->created()->format(DateTimeInterface::ATOM),
-        ]);
-
-        $storedEvent->handle();
-
-        return new Success();
-    }
-};
-
-class OnDropped implements PersistentSubscriptionDropped {
-    public function __invoke(EventStorePersistentSubscription $subscription, SubscriptionDropReason $reason, ?Throwable $exception = null): void {
-        echo 'dropped with reason: ' . $reason->name() . PHP_EOL;
-
-        if ($exception) {
-            echo 'ex: ' . $exception->getMessage() . PHP_EOL;
-        }
-    }
-}
 
 class EventStoreSubscribeCommand extends Command
 {

@@ -16,20 +16,16 @@ class AccountAggregateRoot extends AggregateRoot
 {
     public int $balance = 0;
 
-    protected int $aggregateVersion = 0;
-
-    protected int $aggregateVersionAfterReconstitution = 0;
-
-    protected string $snapshotRepository = EloquentSnapshotRepository::class;
+    public static $category = 'account';
 
     protected function getStoredEventRepository(): StoredEventRepository
     {
-        return new EventStoreStoredEventRepository('account');
+        return new EventStoreStoredEventRepository(self::$category);
     }
 
     protected function getSnapshotRepository(): SnapshotRepository
     {
-        return new EventStoreSnapshotRepository('account');
+        return new EventStoreSnapshotRepository(self::$category);
     }
 
     protected function getState(): array
@@ -50,24 +46,24 @@ class AccountAggregateRoot extends AggregateRoot
 
     public function addMoney(int $amount): self
     {
-        $this->recordThat(new MoneyAdded($amount));
+        $this->recordThat(new MoneyAddedEvent($amount));
 
         return $this;
     }
 
     public function multiplyMoney(int $amount): self
     {
-        $this->recordThat(new MoneyMultiplied($amount));
+        $this->recordThat(new MoneyMultipliedEvent($amount));
 
         return $this;
     }
 
-    public function applyMoneyAdded(MoneyAdded $event)
+    public function applyMoneyAddedEvent(MoneyAddedEvent $event)
     {
         $this->balance += $event->amount;
     }
 
-    public function applyMoneyMultiplied(MoneyMultiplied $event)
+    public function applyMoneyMultipliedEvent(MoneyMultipliedEvent $event)
     {
         $this->balance *= $event->amount;
     }

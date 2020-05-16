@@ -30,6 +30,8 @@ class EventStoreStoredEventRepository implements StoredEventRepository
 
     protected $category;
 
+    public static $all = '$ce-account';
+
     public function __construct($category = null)
     {
         $this->category = $category;
@@ -46,12 +48,11 @@ class EventStoreStoredEventRepository implements StoredEventRepository
      */
     public function retrieveAllStartingFrom(int $startingFrom, string $uuid = null): LazyCollection
     {
-        throw_if($startingFrom > 0, new InvalidArgumentException('Must start from 0 for $all'));
-
+        $startingFrom = max($startingFrom - 1, 0); // if we wanted to start from 1, we actually mean event 0
         $connection = EventStoreConnectionFactory::create();
 
         $slice = $connection->readStreamEventsForward(
-            '$ce-account',
+            self::$all,
             $startingFrom,
             Consts::MAX_READ_SIZE,
             true,
@@ -75,8 +76,6 @@ class EventStoreStoredEventRepository implements StoredEventRepository
                         'meta_data' => new SchemalessAttributes($model, 'meta_data'),
                         'created_at' => $event->event()->created()->format(DateTimeInterface::ATOM),
                     ]);
-
-                    dump('event successful');
                 }
                 catch (InvalidStoredEvent $e) {
                     // dump($e);
@@ -120,20 +119,29 @@ class EventStoreStoredEventRepository implements StoredEventRepository
         });
     }
 
+    /**
+     * @todo Support soft deleted streams?
+     */
     public function countAllStartingFrom(int $startingFrom, string $uuid = null): int
     {
+        $startingFrom = max($startingFrom - 1, 0); // if we wanted to start from 1, we actually mean event 0
         $connection = EventStoreConnectionFactory::create();
 
-        $slice = $connection->readAllEventsBackward(
-            Position::headOfTf(),
+        $slice = $connection->readStreamEventsBackward(
+            self::$all,
+            -1,
             1,
             true,
             new UserCredentials('admin', 'changeit'),
         );
 
-        $lastEventNumber = $slice->events()[0]->event()->eventNumber();
+        if ($slice->status()->name() === 'StreamNotFound') {
+            return 0;
+        }
 
-        return $lastEventNumber - $startingFrom;
+        $totalEvents = $slice->lastEventNumber() + 1; // ES starts from 0
+
+        return $totalEvents - $startingFrom;
     }
 
     public function persist(ShouldBeStored $event, string $uuid = null, int $aggregateVersion = null): StoredEvent

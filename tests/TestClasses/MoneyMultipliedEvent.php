@@ -4,7 +4,7 @@ namespace DigitalRisks\Lese\Tests\TestClasses;
 
 use Spatie\EventSourcing\ShouldBeStored;
 
-class MoneyAdded implements ShouldBeStored
+class MoneyMultipliedEvent implements ShouldBeStored
 {
     public int $amount;
 

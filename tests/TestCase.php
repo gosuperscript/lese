@@ -2,6 +2,8 @@
 
 namespace DigitalRisks\Lese\Tests;
 
+use DigitalRisks\Lese\EventStoreSnapshotRepository;
+use DigitalRisks\Lese\EventStoreStoredEventRepository;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Schema;
 use Spatie\EventSourcing\EventSourcingServiceProvider;
