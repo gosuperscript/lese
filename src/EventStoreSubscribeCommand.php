@@ -26,34 +26,22 @@ use Spatie\SchemalessAttributes\SchemalessAttributes;
 
 class OnEvent implements EventAppearedOnPersistentSubscription
 {
-    protected $projectionist;
-
-    public function __construct(Projectionist $projectionist)
-    {
-        $this->projectionist = $projectionist;
-    }
-
     public function __invoke(EventStorePersistentSubscription $subscription, ResolvedEvent $resolvedEvent, ?int $retryCount = null): Promise
     {
         $event = $resolvedEvent->event();
 
-        $emptyModel = new class extends Model { };
-        $model = new $emptyModel();
-        $model->meta_data = $event->metadata() ?: null;
+        $metaModel = new StubModel(['meta_data' => $event->metadata() ?: null]);
 
         $storedEvent = new StoredEvent([
             'id' => $event->eventNumber(),
             'event_properties' => $event->data(),
             'aggregate_uuid' => Str::before($event->eventStreamId(), '-'), // @todo remove $ce- so this works
             'event_class' => $event->eventType(),
-            'meta_data' => new SchemalessAttributes($model, 'meta_data'),
+            'meta_data' => new SchemalessAttributes($metaModel, 'meta_data'),
             'created_at' => $event->created()->format(DateTimeInterface::ATOM),
         ]);
 
-        dump('Firing');
-        dump($this->projectionist);
-
-        $this->projectionist->handle($storedEvent);
+        $storedEvent->handle();
 
         return new Success();
     }
@@ -75,12 +63,8 @@ class EventStoreSubscribeCommand extends Command
 
     protected $description = 'Subscribe to a persistent subscription';
 
-    protected ?Projectionist $projectionist;
-
-    public function handle(Projectionist $projectionist): void
+    public function handle(): void
     {
-        $this->projectionist = $projectionist;
-
         Loop::run(function () {
             $connection = EventStoreConnectionFactory::createFromEndPoint(
                 new EndPoint('localhost', 1113)
@@ -99,7 +83,7 @@ class EventStoreSubscribeCommand extends Command
             yield $connection->connectToPersistentSubscriptionAsync(
                 $this->option('stream'),
                 $this->option('group'),
-                new OnEvent($this->projectionist),
+                new OnEvent(),
                 new OnDropped(),
                 10,
                 true,
