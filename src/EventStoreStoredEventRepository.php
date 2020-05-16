@@ -66,20 +66,14 @@ class EventStoreStoredEventRepository implements StoredEventRepository
                 $model = new $emptyModel();
                 $model->meta_data = $event->event()->metadata() ?: null;
 
-                // yield 1;
-                try {
-                    yield new StoredEvent([
-                        'id' => $event->originalEventNumber(),
-                        'event_properties' => $event->event()->data(),
-                        'aggregate_uuid' => Str::before($event->originalStreamName(), '-'), // @todo remove $ce- so this works
-                        'event_class' => $event->event()->eventType(),
-                        'meta_data' => new SchemalessAttributes($model, 'meta_data'),
-                        'created_at' => $event->event()->created()->format(DateTimeInterface::ATOM),
-                    ]);
-                }
-                catch (InvalidStoredEvent $e) {
-                    // dump($e);
-                }
+                yield new StoredEvent([
+                    'id' => $event->originalEventNumber(),
+                    'event_properties' => $event->event()->data(),
+                    'aggregate_uuid' => Str::before($event->originalStreamName(), '-'), // @todo remove $ce- so this works
+                    'event_class' => $event->event()->eventType(),
+                    'meta_data' => new SchemalessAttributes($model, 'meta_data'),
+                    'created_at' => $event->event()->created()->format(DateTimeInterface::ATOM),
+                ]);
             }
         });
     }
@@ -139,7 +133,7 @@ class EventStoreStoredEventRepository implements StoredEventRepository
             return 0;
         }
 
-        $totalEvents = $slice->lastEventNumber() + 1; // ES starts from 0
+        $totalEvents = $slice->events()[0]->link()->eventNumber() + 1; // ES starts from 0
 
         return $totalEvents - $startingFrom;
     }

@@ -13,7 +13,7 @@ use Prooph\EventStore\Async\EventStorePersistentSubscription;
 use Prooph\EventStore\ResolvedEvent;
 use Spatie\EventSourcing\StoredEvent;
 use Illuminate\Support\Str;
-use Spatie\EventSourcing\Exceptions\InvalidStoredEvent;
+use Prooph\EventStore\PersistentSubscriptionNakEventAction;
 use Spatie\SchemalessAttributes\SchemalessAttributes;
 
 class OnEvent implements EventAppearedOnPersistentSubscription
@@ -36,10 +36,14 @@ class OnEvent implements EventAppearedOnPersistentSubscription
 
             $storedEvent->handle();
 
-            return new Success();
+            $subscription->acknowledge($resolvedEvent);
         }
         catch (Exception $e) {
-            return new Failure($e);
+            report($e);
+
+            $subscription->fail($resolvedEvent, PersistentSubscriptionNakEventAction::unknown(), $e->getMessage());
         }
+
+        return new Success();
     }
 };

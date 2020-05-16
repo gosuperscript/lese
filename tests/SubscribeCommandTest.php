@@ -31,9 +31,11 @@ class SubscribeCommandTest extends TestCase
     public function it_calls_projector_and_reactor_on_receiving_an_event_and_returns_success()
     {
         // Arrrange.
-        $subscription = $this->mock(EventStorePersistentSubscription::class);
         $recordedEvent = new RecordedEvent('test', 1, EventId::generate(), MoneyAddedEvent::class, true, '{ "amount": 100 }', '{}', new DateTimeImmutable());
         $resolvedEvent = new ResolvedEvent($recordedEvent, null, null);
+
+        $subscription = $this->mock(EventStorePersistentSubscription::class);
+        $subscription->shouldReceive('acknowledge')->andReturnNull()->once();
 
         $projector = $this->mock(BalanceProjector::class.'[onMoneyAdded]');
         $projector->shouldReceive('onMoneyAdded')->andReturnNull()->once();
@@ -49,12 +51,14 @@ class SubscribeCommandTest extends TestCase
     }
 
     /** @test */
-    public function it_returns_failure_if_an_error_happens_in_a_projector()
+    public function it_returns_success_but_naks_if_an_error_happens()
     {
         // Arrrange.
-        $subscription = $this->mock(EventStorePersistentSubscription::class);
         $recordedEvent = new RecordedEvent('test', 1, EventId::generate(), MoneyAddedEvent::class, true, '{ "amount": 100 }', '{}', new DateTimeImmutable());
         $resolvedEvent = new ResolvedEvent($recordedEvent, null, null);
+
+        $subscription = $this->mock(EventStorePersistentSubscription::class);
+        $subscription->shouldReceive('fail')->andReturnNull()->once();
 
         $projector = $this->mock(BalanceProjector::class.'[onMoneyAdded]');
         $projector->shouldReceive('onMoneyAdded')->andThrow(new Exception)->once();
@@ -62,22 +66,6 @@ class SubscribeCommandTest extends TestCase
 
         $onEvent = new OnEvent();
         $result = $onEvent->__invoke($subscription, $resolvedEvent);
-        $this->assertInstanceOf(Failure::class, $result);
-    }
-
-    /** @test */
-    public function it_returns_failure_if_event_isnt_registered()
-    {
-        // Arrrange.
-        $subscription = $this->mock(EventStorePersistentSubscription::class);
-        $recordedEvent = new RecordedEvent('test', 1, EventId::generate(), 'i do not exist', true, '{}', '{}', new DateTimeImmutable());
-        $resolvedEvent = new ResolvedEvent($recordedEvent, null, null);
-
-        // Act.
-        $onEvent = new OnEvent();
-        $result = $onEvent->__invoke($subscription, $resolvedEvent);
-
-        // Assert.
-        $this->assertInstanceOf(Failure::class, $result);
+        $this->assertInstanceOf(Success::class, $result);
     }
 }
