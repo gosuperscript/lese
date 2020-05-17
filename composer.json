@@ -35,7 +35,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "DigitalRisks\\Lese\\ServiceProvider"
+                "DigitalRisks\\Lese\\LeseServiceProvider"
             ]
         }
     }

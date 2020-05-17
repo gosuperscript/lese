@@ -7,6 +7,7 @@ use Amp\Success;
 use Carbon\Carbon;
 use DateTimeImmutable;
 use DigitalRisks\Lese\Handlers\OnEvent;
+use DigitalRisks\Lese\Tests\TestClasses\AccountAggregateRoot;
 use DigitalRisks\Lese\Tests\TestClasses\BalanceProjector;
 use DigitalRisks\Lese\Tests\TestClasses\BrokeReactor;
 use DigitalRisks\Lese\Tests\TestClasses\MoneyAddedEvent;
@@ -45,7 +46,7 @@ class SubscribeCommandTest extends TestCase
         $reactor->shouldReceive('onMoneyAdded')->andReturnNull()->once();
         Projectionist::addReactor($reactor);
 
-        $onEvent = new OnEvent();
+        $onEvent = resolve(OnEvent::class);
         $result = $onEvent->__invoke($subscription, $resolvedEvent);
         $this->assertInstanceOf(Success::class, $result);
     }
@@ -64,7 +65,7 @@ class SubscribeCommandTest extends TestCase
         $projector->shouldReceive('onMoneyAdded')->andThrow(new Exception)->once();
         Projectionist::addProjector($projector);
 
-        $onEvent = new OnEvent();
+        $onEvent = resolve(OnEvent::class);
         $result = $onEvent->__invoke($subscription, $resolvedEvent);
         $this->assertInstanceOf(Success::class, $result);
     }

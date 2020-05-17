@@ -24,18 +24,21 @@ use Prooph\EventStore\Internal\Consts;
 use Illuminate\Support\Str;
 use Spatie\EventSourcing\Exceptions\InvalidStoredEvent;
 use Prooph\EventStore\EventStoreConnection;
+use Spatie\EventSourcing\AggregateRoot;
 
 class EventStoreStoredEventRepository implements StoredEventRepository
 {
-    public static $all = '$ce-account';
-
-    protected $category;
     protected EventStoreConnection $eventstore;
+    protected Lese $lese;
+    protected string $all;
+    protected ?AggregateRoot $aggregate;
 
-    public function __construct(EventStoreConnection $eventstore, $category = null)
+    public function __construct(EventStoreConnection $eventstore, Lese $lese, AggregateRoot $aggregate = null, $all = null)
     {
         $this->eventstore = $eventstore;
-        $this->category = $category;
+        $this->lese = $lese;
+        $this->aggregate = $aggregate;
+        $this->all = $all ?? config('lese.all');
     }
 
     public function retrieveAll(string $uuid = null): LazyCollection
@@ -44,71 +47,40 @@ class EventStoreStoredEventRepository implements StoredEventRepository
     }
 
     /**
+     * * @todo LazyCollection and paginate?
+     */
+    public function retrieveAllAfterVersion(int $aggregateVersion, string $aggregateUuid): LazyCollection
+    {
+        return $this->streamEventsToStoredEvents(
+            $this->lese->aggregateToStream($this->aggregate, $aggregateUuid),
+            $aggregateVersion,
+        );
+    }
+
+    /**
      * @todo Support a stream to read from instead of $all
      * @todo LazyCollection and paginate?
      */
     public function retrieveAllStartingFrom(int $startingFrom, string $uuid = null): LazyCollection
     {
-        throw_if(self::$all === '$all' && $startingFrom > 0, 'Starting from not valid for $all stream');
+        throw_if($this->all === '$all' && $startingFrom > 0, 'Starting from not valid for $all stream');
 
         $startingFrom = max($startingFrom - 1, 0); // if we wanted to start from 1, we actually mean event 0
 
-        $slice = $this->eventstore->readStreamEventsForward(
-            self::$all,
-            $startingFrom,
-            Consts::MAX_READ_SIZE,
-            true,
-            new UserCredentials('admin', 'changeit'),
-        );
-
-        return LazyCollection::make(function () use ($slice) {
-            foreach ($slice->events() as $event) {
-                $emptyModel = new class extends Model {
-                };
-                $model = new $emptyModel();
-                $model->meta_data = $event->event()->metadata() ?: null;
-
-                yield new StoredEvent([
-                    'id' => $event->originalEventNumber(),
-                    'event_properties' => $event->event()->data(),
-                    'aggregate_uuid' => Str::before($event->originalStreamName(), '-'), // @todo remove $ce- so this works
-                    'event_class' => $event->event()->eventType(),
-                    'meta_data' => new SchemalessAttributes($model, 'meta_data'),
-                    'created_at' => $event->event()->created()->format(DateTimeInterface::ATOM),
-                ]);
-            }
-        });
+        return $this->streamEventsToStoredEvents($this->all, $startingFrom);
     }
 
-    /**
-     * * @todo LazyCollection and paginate?
-     */
-    public function retrieveAllAfterVersion(int $aggregateVersion, string $aggregateUuid): LazyCollection
-    {
+    protected function streamEventsToStoredEvents($stream, $from) {
         $slice = $this->eventstore->readStreamEventsForward(
-            $this->category . '-' . $aggregateUuid,
-            $aggregateVersion,
+            $stream,
+            $from,
             Consts::MAX_READ_SIZE,
             true,
-            new UserCredentials('admin', 'changeit'),
         );
 
         return LazyCollection::make(function () use ($slice) {
             foreach ($slice->events() as $event) {
-                $emptyModel = new class extends Model {
-                };
-                $model = new $emptyModel();
-                $model->meta_data = $event->event()->metadata();
-
-                // yield 1;
-                yield new StoredEvent([
-                    'id' => $event->originalEventNumber(),
-                    'event_properties' => $event->event()->data(),
-                    'aggregate_uuid' => Str::before($event->originalStreamName(), '-'),
-                    'event_class' => $event->event()->eventType(),
-                    'meta_data' => new SchemalessAttributes($model, 'meta_data'),
-                    'created_at' => $event->event()->created()->format(DateTimeInterface::ATOM),
-                ]);
+                yield $this->lese->recordedEventToStoredEvent($event->event());
             }
         });
     }
@@ -118,59 +90,36 @@ class EventStoreStoredEventRepository implements StoredEventRepository
      */
     public function countAllStartingFrom(int $startingFrom, string $uuid = null): int
     {
+        $lastEventNumber = $this->getLatestEventNumber($this->all);
         $startingFrom = max($startingFrom - 1, 0); // if we wanted to start from 1, we actually mean event 0
 
-        $slice = $this->eventstore->readStreamEventsBackward(
-            self::$all,
-            -1,
-            1,
-            true,
-            new UserCredentials('admin', 'changeit'),
-        );
-
-        if ($slice->status()->name() === 'StreamNotFound') {
-            return 0;
-        }
-
-        $totalEvents = $slice->events()[0]->link()->eventNumber() + 1; // ES starts from 0
-
-        return $totalEvents - $startingFrom;
+        return $lastEventNumber - $startingFrom;
     }
 
     public function persist(ShouldBeStored $event, string $uuid = null, int $aggregateVersion = null): StoredEvent
     {
-        $json = app(EventSerializer::class)->serialize(clone $event);
-        $metadata = '{}';
-        $event = new EventData(EventId::generate(), get_class($event), true, $json, $metadata);
-
-        $write = $this->eventstore->appendToStream(
-            $this->category . '-' . $uuid,
-            ExpectedVersion::ANY,
-            [$event],
-            new UserCredentials('admin', 'changeit'),
-        );
-
-        $emptyModel = new class extends Model { };
-        $model = new $emptyModel();
-        $model->meta_data = $metadata;
-
-        return new StoredEvent([
-            'id' => $write->nextExpectedVersion(),
-            'event_properties' => $event->data(),
-            'aggregate_uuid' => $uuid ?? '',
-            'event_class' => $event->eventType(),
-            'meta_data' => new SchemalessAttributes($model, 'meta_data'),
-            'created_at' => Carbon::now(),
-        ]);
+        return $this->persistMany([$event], $uuid, $aggregateVersion)[0];
     }
 
     public function persistMany(array $events, string $uuid = null, int $aggregateVersion = null): LazyCollection
     {
         $storedEvents = [];
 
-        foreach ($events as $event) {
-            $storedEvents[] = self::persist($event, $uuid, $aggregateVersion);
-        }
+        $dataEvents = collect($events)->map(function ($event) {
+            $json = app(EventSerializer::class)->serialize(clone $event);
+            $metadata = '{}';
+            return new EventData(EventId::generate(), get_class($event), true, $json, $metadata);
+        });
+
+        $this->eventstore->appendToStream(
+            $this->lese->aggregateToStream($this->aggregate, $uuid),
+            ExpectedVersion::ANY,
+            $dataEvents->toArray(),
+        );
+
+        $storedEvents = $dataEvents->map(function ($event) use ($uuid, $aggregateVersion) {
+            return $this->lese->eventDataToStoredEvent($event, $uuid, $aggregateVersion++);
+        });
 
         return new LazyCollection($storedEvents);
     }
@@ -182,12 +131,15 @@ class EventStoreStoredEventRepository implements StoredEventRepository
 
     public function getLatestAggregateVersion(string $aggregateUuid): int
     {
+        return $this->getLatestEventNumber($this->lese->aggregateToStream($this->aggregate, $aggregateUuid));
+    }
+
+    protected function getLatestEventNumber($stream) {
         $slice = $this->eventstore->readStreamEventsBackward(
-            $this->category . '-' . $aggregateUuid,
+            $stream,
             -1,
             1,
             true,
-            new UserCredentials('admin', 'changeit'),
         );
 
         if ($slice->status()->name() === 'StreamNotFound') {

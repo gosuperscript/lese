@@ -33,9 +33,9 @@ class EventStoreSubscribeCommand extends Command
 
     protected $description = 'Subscribe to a persistent subscription';
 
-    public function handle(EventStoreConnection $eventstore): void
+    public function handle(EventStoreConnection $eventstore, OnEvent $onEvent, OnDropped $onDropped): void
     {
-        Loop::run(function () use ($eventstore) {
+        Loop::run(function () use ($eventstore, $onEvent, $onDropped) {
             $eventstore->onConnected(function (): void {
                 echo 'connected' . PHP_EOL;
             });
@@ -58,8 +58,8 @@ class EventStoreSubscribeCommand extends Command
                 yield $eventstore->connectToPersistentSubscriptionAsync(
                     $stream,
                     config('lese.group'),
-                    new OnEvent(),
-                    new OnDropped(),
+                    $onEvent,
+                    $onDropped,
                     10,
                     false, // we ack
                 );

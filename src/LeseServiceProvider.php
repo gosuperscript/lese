@@ -21,7 +21,7 @@ use Prooph\EventStore\EventStoreConnection as HttpEventStoreConnection;
 use Prooph\EventStoreHttpClient\ConnectionSettings as HttpConnectionSettings;
 use Prooph\EventStoreHttpClient\EventStoreConnectionFactory as HttpEventStoreConnectionFactory;
 
-class ServiceProvider extends LaravelServiceProvider
+class LeseServiceProvider extends LaravelServiceProvider
 {
     /**
      * Bootstrap the application services.

@@ -16,16 +16,14 @@ class AccountAggregateRoot extends AggregateRoot
 {
     public int $balance = 0;
 
-    public static $category = 'account';
-
     protected function getStoredEventRepository(): StoredEventRepository
     {
-        return resolve(EventStoreStoredEventRepository::class, ['category' => self::$category]);
+        return resolve(EventStoreStoredEventRepository::class, ['aggregate' => $this]);
     }
 
     protected function getSnapshotRepository(): SnapshotRepository
     {
-        return resolve(EventStoreSnapshotRepository::class, ['category' => self::$category]);
+        return resolve(EventStoreSnapshotRepository::class, ['aggregate' => $this]);
     }
 
     protected function getState(): array

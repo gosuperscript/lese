@@ -7,25 +7,29 @@ use Prooph\EventStore\EventId;
 use Prooph\EventStore\ExpectedVersion;
 use Prooph\EventStore\UserCredentials;
 use Prooph\EventStoreHttpClient\EventStoreConnectionFactory;
+use Spatie\EventSourcing\AggregateRoot;
 use Spatie\EventSourcing\EventSerializers\EventSerializer;
+use Prooph\EventStore\EventStoreConnection;
 use Spatie\EventSourcing\Snapshots\Snapshot;
 use Spatie\EventSourcing\Snapshots\SnapshotRepository;
 
 class EventStoreSnapshotRepository implements SnapshotRepository
 {
-    protected $category;
+    protected EventStoreConnection $eventstore;
+    protected Lese $lese;
+    protected ?AggregateRoot $aggregate;
 
-    public function __construct($category)
+    public function __construct(EventStoreConnection $eventstore, Lese $lese, AggregateRoot $aggregate = null)
     {
-        $this->category = $category;
+        $this->eventstore = $eventstore;
+        $this->aggregate = $aggregate;
+        $this->lese = $lese;
     }
 
     public function retrieve(string $aggregateUuid): ?Snapshot
     {
-        $connection = EventStoreConnectionFactory::create();
-
-        $slice = $connection->readStreamEventsBackward(
-            '$' . $this->category . '-' . $aggregateUuid . '-snapshot',
+        $slice = $this->eventstore->readStreamEventsBackward(
+            $this->lese->aggregateToSnapshotStream($this->aggregate, $aggregateUuid),
             -1,
             1,
             true,
@@ -45,15 +49,20 @@ class EventStoreSnapshotRepository implements SnapshotRepository
 
     public function persist(Snapshot $snapshot): Snapshot
     {
-        $connection = EventStoreConnectionFactory::create();
-
         $metadata = [
             'aggregateVersion' => $snapshot->aggregateVersion,
         ];
-        $event = new EventData(EventId::generate(), get_class($snapshot), true, json_encode($snapshot->state), json_encode($metadata));
 
-        $write = $connection->appendToStream(
-            '$' . $this->category . '-' . $snapshot->aggregateUuid . '-snapshot',
+        $event = new EventData(
+            EventId::generate(),
+            get_class($snapshot),
+            true,
+            json_encode($snapshot->state),
+            json_encode($metadata)
+        );
+
+        $write = $this->eventstore->appendToStream(
+            $this->lese->aggregateToSnapshotStream($this->aggregate, $snapshot->aggregateUuid),
             ExpectedVersion::ANY,
             [$event],
             new UserCredentials('admin', 'changeit'),

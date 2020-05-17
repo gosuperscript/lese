@@ -24,8 +24,9 @@ class ReplayCommandTest extends TestCase
     {
         parent::setUp();
 
-        AccountAggregateRoot::$category = $this->faker->md5;
-        EventStoreStoredEventRepository::$all = '$ce-' . AccountAggregateRoot::$category;
+        $category = $this->faker->md5;
+        config()->set("lese.aggregate_category_map." . AccountAggregateRoot::class, $category);
+        config()->set("lese.all", '$ce-' . $category);
 
         $account = AccountAggregateRoot::retrieve($this->faker->uuid);
         foreach (range(1, 3) as $i) {

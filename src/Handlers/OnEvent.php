@@ -6,6 +6,7 @@ use Amp\Failure;
 use Amp\Promise;
 use Amp\Success;
 use DateTimeInterface;
+use DigitalRisks\Lese\Lese;
 use DigitalRisks\Lese\StubModel;
 use Exception;
 use Prooph\EventStore\Async\EventAppearedOnPersistentSubscription;
@@ -18,21 +19,17 @@ use Spatie\SchemalessAttributes\SchemalessAttributes;
 
 class OnEvent implements EventAppearedOnPersistentSubscription
 {
+    protected Lese $lese;
+
+    public function __construct(Lese $lese)
+    {
+        $this->lese = $lese;
+    }
+
     public function __invoke(EventStorePersistentSubscription $subscription, ResolvedEvent $resolvedEvent, ?int $retryCount = null): Promise
     {
-        $event = $resolvedEvent->event();
-
-        $metaModel = new StubModel(['meta_data' => $event->metadata() ?: null]);
-
         try {
-            $storedEvent = new StoredEvent([
-                'id' => $event->eventNumber(),
-                'event_properties' => $event->data(),
-                'aggregate_uuid' => Str::before($event->eventStreamId(), '-'), // @todo remove $ce- so this works
-                'event_class' => $event->eventType(),
-                'meta_data' => new SchemalessAttributes($metaModel, 'meta_data'),
-                'created_at' => $event->created()->format(DateTimeInterface::ATOM),
-            ]);
+            $storedEvent = $this->lese->recordedEventToStoredEvent($resolvedEvent->event());
 
             $storedEvent->handle();
 
