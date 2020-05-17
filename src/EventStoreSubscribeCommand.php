@@ -23,6 +23,7 @@ use Prooph\EventStoreClient\EventStoreConnectionFactory;
 use Spatie\EventSourcing\Projectionist;
 use Throwable;
 use Illuminate\Support\Str;
+use Prooph\EventStore\Async\EventStoreConnection;
 use Spatie\EventSourcing\StoredEvent;
 use Spatie\SchemalessAttributes\SchemalessAttributes;
 
@@ -32,32 +33,35 @@ class EventStoreSubscribeCommand extends Command
 
     protected $description = 'Subscribe to a persistent subscription';
 
-    public function handle(): void
+    public function handle(EventStoreConnection $eventstore): void
     {
-        Loop::run(function () {
-            $connection = EventStoreConnectionFactory::createFromEndPoint(
-                new EndPoint('localhost', 1113)
-            );
-
-            $connection->onConnected(function (): void {
+        Loop::run(function () use ($eventstore) {
+            $eventstore->onConnected(function (): void {
                 echo 'connected' . PHP_EOL;
             });
 
-            $connection->onClosed(function (): void {
+            $eventstore->onClosed(function (): void {
                 echo 'connection closed' . PHP_EOL;
             });
 
-            yield $connection->connectAsync();
+            $eventstore->onErrorOccurred(function () {
+                echo 'error';
+            });
 
-            foreach (config('eventstore.subscription_streams') as $stream) {
-                yield $connection->connectToPersistentSubscriptionAsync(
+            $eventstore->onDisconnected(function () {
+                echo 'error';
+            });
+
+            yield $eventstore->connectAsync();
+
+            foreach (config('lese.subscription_streams') as $stream) {
+                yield $eventstore->connectToPersistentSubscriptionAsync(
                     $stream,
-                    config('eventstore.group'),
+                    config('lese.group'),
                     new OnEvent(),
                     new OnDropped(),
                     10,
-                    true,
-                    new UserCredentials('admin', 'changeit')
+                    false, // we ack
                 );
             }
         });

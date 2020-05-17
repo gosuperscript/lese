@@ -20,12 +20,12 @@ class AccountAggregateRoot extends AggregateRoot
 
     protected function getStoredEventRepository(): StoredEventRepository
     {
-        return new EventStoreStoredEventRepository(self::$category);
+        return resolve(EventStoreStoredEventRepository::class, ['category' => self::$category]);
     }
 
     protected function getSnapshotRepository(): SnapshotRepository
     {
-        return new EventStoreSnapshotRepository(self::$category);
+        return resolve(EventStoreSnapshotRepository::class, ['category' => self::$category]);
     }
 
     protected function getState(): array

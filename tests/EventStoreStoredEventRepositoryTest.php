@@ -15,7 +15,7 @@ class EventStoreStoredEventRepositoryTest extends TestCase
     /** @test */
     public function it_can_get_the_latest_version_id_for_a_given_aggregate_uuid()
     {
-        $eloquentStoredEventRepository = new EventStoreStoredEventRepository('account');
+        $eloquentStoredEventRepository = resolve(EventStoreStoredEventRepository::class, ['category' => 'account']);
 
         $this->assertEquals(0, $eloquentStoredEventRepository->getLatestAggregateVersion($this->faker->uuid));
 

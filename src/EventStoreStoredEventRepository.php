@@ -23,17 +23,18 @@ use Illuminate\Database\Eloquent\Model;
 use Prooph\EventStore\Internal\Consts;
 use Illuminate\Support\Str;
 use Spatie\EventSourcing\Exceptions\InvalidStoredEvent;
+use Prooph\EventStore\EventStoreConnection;
 
 class EventStoreStoredEventRepository implements StoredEventRepository
 {
-    protected string $storedEventModel;
-
-    protected $category;
-
     public static $all = '$ce-account';
 
-    public function __construct($category = null)
+    protected $category;
+    protected EventStoreConnection $eventstore;
+
+    public function __construct(EventStoreConnection $eventstore, $category = null)
     {
+        $this->eventstore = $eventstore;
         $this->category = $category;
     }
 
@@ -48,10 +49,11 @@ class EventStoreStoredEventRepository implements StoredEventRepository
      */
     public function retrieveAllStartingFrom(int $startingFrom, string $uuid = null): LazyCollection
     {
-        $startingFrom = max($startingFrom - 1, 0); // if we wanted to start from 1, we actually mean event 0
-        $connection = EventStoreConnectionFactory::create();
+        throw_if(self::$all === '$all' && $startingFrom > 0, 'Starting from not valid for $all stream');
 
-        $slice = $connection->readStreamEventsForward(
+        $startingFrom = max($startingFrom - 1, 0); // if we wanted to start from 1, we actually mean event 0
+
+        $slice = $this->eventstore->readStreamEventsForward(
             self::$all,
             $startingFrom,
             Consts::MAX_READ_SIZE,
@@ -83,9 +85,7 @@ class EventStoreStoredEventRepository implements StoredEventRepository
      */
     public function retrieveAllAfterVersion(int $aggregateVersion, string $aggregateUuid): LazyCollection
     {
-        $connection = EventStoreConnectionFactory::create();
-
-        $slice = $connection->readStreamEventsForward(
+        $slice = $this->eventstore->readStreamEventsForward(
             $this->category . '-' . $aggregateUuid,
             $aggregateVersion,
             Consts::MAX_READ_SIZE,
@@ -119,9 +119,8 @@ class EventStoreStoredEventRepository implements StoredEventRepository
     public function countAllStartingFrom(int $startingFrom, string $uuid = null): int
     {
         $startingFrom = max($startingFrom - 1, 0); // if we wanted to start from 1, we actually mean event 0
-        $connection = EventStoreConnectionFactory::create();
 
-        $slice = $connection->readStreamEventsBackward(
+        $slice = $this->eventstore->readStreamEventsBackward(
             self::$all,
             -1,
             1,
@@ -140,13 +139,11 @@ class EventStoreStoredEventRepository implements StoredEventRepository
 
     public function persist(ShouldBeStored $event, string $uuid = null, int $aggregateVersion = null): StoredEvent
     {
-        $connection = EventStoreConnectionFactory::create();
-
         $json = app(EventSerializer::class)->serialize(clone $event);
         $metadata = '{}';
         $event = new EventData(EventId::generate(), get_class($event), true, $json, $metadata);
 
-        $write = $connection->appendToStream(
+        $write = $this->eventstore->appendToStream(
             $this->category . '-' . $uuid,
             ExpectedVersion::ANY,
             [$event],
@@ -185,9 +182,7 @@ class EventStoreStoredEventRepository implements StoredEventRepository
 
     public function getLatestAggregateVersion(string $aggregateUuid): int
     {
-        $connection = EventStoreConnectionFactory::create();
-
-        $slice = $connection->readStreamEventsBackward(
+        $slice = $this->eventstore->readStreamEventsBackward(
             $this->category . '-' . $aggregateUuid,
             -1,
             1,

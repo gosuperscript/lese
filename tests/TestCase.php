@@ -4,6 +4,7 @@ namespace DigitalRisks\Lese\Tests;
 
 use DigitalRisks\Lese\EventStoreSnapshotRepository;
 use DigitalRisks\Lese\EventStoreStoredEventRepository;
+use DigitalRisks\Lese\ServiceProvider;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Schema;
 use Spatie\EventSourcing\EventSourcingServiceProvider;
@@ -27,7 +28,8 @@ class TestCase extends \Orchestra\Testbench\TestCase
     protected function getPackageProviders($app)
     {
         return [
-            EventSourcingServiceProvider::class
+            EventSourcingServiceProvider::class,
+            ServiceProvider::class,
         ];
     }
 }
