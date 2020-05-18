@@ -19,7 +19,7 @@ php artisan vendor:publish --provider="DigitalRisks\Lese\LeseServiceProvider" --
 * [ ] Ignore events
 * [ ] Metadata callbacks
 * [ ] Documentation
-* [ ] Separate repo and package
+* [X] Separate repo and package
 * [x] Support reads larger than 4096 events (use yield?)
 * [x] Callbacks for aggregate stream, aggregate snapshots
 * [x] Refactor ResolvedEvent to StoredEvent
