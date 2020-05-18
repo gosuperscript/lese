@@ -6,5 +6,7 @@ return [
     'subscription_streams' => array_filter(explode(',', env('EVENTSTORE_SUBSCRIPTION_STREAMS'))),
     'group' => env('EVENTSTORE_SUBSCRIPTION_GROUP', env('APP_NAME', 'laravel')),
     'aggregate_category_map' => [],
-    'all' => '$all',
+    'all' => env('EVENTSTORE_ALL', '$all'),
+    'read_size' => env('EVENTSTORE_READ_SIZE', 4096),
+    'batch_size' => env('EVENTSTORE_BATCH_SIZE', 4096),
 ];

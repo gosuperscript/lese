@@ -60,7 +60,7 @@ class EventStoreSubscribeCommand extends Command
                     config('lese.group'),
                     $onEvent,
                     $onDropped,
-                    10,
+                    config('lese.batch_size'),
                     false, // we ack
                 );
             }

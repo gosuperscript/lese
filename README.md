@@ -6,16 +6,21 @@ This package swaps out the Event and Snapshot storage model for [Laravel Event S
 
 In addition it provides a console command to subscribe to persistent subscriptions to fire events in your application that are from other systems. This can be useful in a microservice architecture.
 
+## Installation
 
+composer require digitalrisks/lese:^1.0
+
+php artisan vendor:publish --provider="DigitalRisks\Lese\LeseServiceProvider" --tag="config"
 
 ## @todo
 
 * [ ] Callbacks for received, processed, failed
-* [ ] Support reads larger than 4096 events (use yield?)
 * [ ] Support reading from $all stream or a user stream
 * [ ] Ignore events
 * [ ] Metadata callbacks
 * [ ] Documentation
+* [ ] Separate repo and package
+* [x] Support reads larger than 4096 events (use yield?)
 * [x] Callbacks for aggregate stream, aggregate snapshots
 * [x] Refactor ResolvedEvent to StoredEvent
 * [x] Use env connection settings

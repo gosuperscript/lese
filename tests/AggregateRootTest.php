@@ -35,6 +35,25 @@ class AggregateRootTest extends TestCase
     }
 
     /** @test */
+    public function when_retrieving_an_aggregate_root_all_events_will_be_replayed_to_it_with_small_read_size()
+    {
+        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregateRoot $aggregateRoot */
+        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
+
+        $aggregateRoot
+            ->addMoney(100)
+            ->addMoney(100)
+            ->addMoney(100);
+
+        $aggregateRoot->persist();
+
+        config()->set('lese.read_size', 3);
+        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
+
+        $this->assertEquals(300, $aggregateRoot->balance);
+    }
+
+    /** @test */
     public function restoring_an_aggregate_root_with_a_snapshot_restores_public_properties()
     {
         /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregateRoot $aggregateRoot */

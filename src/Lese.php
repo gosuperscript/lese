@@ -11,6 +11,7 @@ use Prooph\EventStore\EventData;
 use Prooph\EventStore\RecordedEvent;
 use Spatie\EventSourcing\StoredEvent;
 use Spatie\SchemalessAttributes\SchemalessAttributes;
+use Prooph\EventStore\ResolvedEvent;
 
 class Lese
 {
@@ -39,6 +40,18 @@ class Lese
             'meta_data' => new SchemalessAttributes($metaModel, 'meta_data'),
             'created_at' => Carbon::now(),
         ]);
+    }
+
+    public function onEventReceived(ResolvedEvent $event) {
+
+    }
+
+    public function onEventProcessed(ResolvedEvent $event) {
+
+    }
+
+    public function onEventFailed(ResolvedEvent $event) {
+
     }
 
     public function shouldSkipEvent() {

@@ -32,13 +32,15 @@ class EventStoreStoredEventRepository implements StoredEventRepository
     protected Lese $lese;
     protected string $all;
     protected ?AggregateRoot $aggregate;
+    protected int $read_size;
 
-    public function __construct(EventStoreConnection $eventstore, Lese $lese, AggregateRoot $aggregate = null, $all = null)
+    public function __construct(EventStoreConnection $eventstore, Lese $lese, AggregateRoot $aggregate = null, $config = null)
     {
         $this->eventstore = $eventstore;
         $this->lese = $lese;
         $this->aggregate = $aggregate;
-        $this->all = $all ?? config('lese.all');
+        $this->all = $config['all'] ?? config('lese.all');
+        $this->read_size = $config['read_size'] ?? config('lese.read_size');
     }
 
     public function retrieveAll(string $uuid = null): LazyCollection
@@ -70,18 +72,21 @@ class EventStoreStoredEventRepository implements StoredEventRepository
         return $this->streamEventsToStoredEvents($this->all, $startingFrom);
     }
 
-    protected function streamEventsToStoredEvents($stream, $from) {
-        $slice = $this->eventstore->readStreamEventsForward(
-            $stream,
-            $from,
-            Consts::MAX_READ_SIZE,
-            true,
-        );
+    protected function streamEventsToStoredEvents($stream, $from)
+    {
+        return LazyCollection::make(function () use ($stream, $from) {
+            do {
+                $slice = $this->eventstore->readStreamEventsForward(
+                    $stream,
+                    $from,
+                    $this->read_size,
+                    true,
+                );
 
-        return LazyCollection::make(function () use ($slice) {
-            foreach ($slice->events() as $event) {
-                yield $this->lese->recordedEventToStoredEvent($event->event());
-            }
+                foreach ($slice->events() as $event) {
+                    yield $this->lese->recordedEventToStoredEvent($event->event());
+                }
+            } while (! $slice->isEndOfStream());
         });
     }
 
