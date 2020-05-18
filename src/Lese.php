@@ -4,6 +4,7 @@ namespace DigitalRisks\Lese;
 
 use Carbon\Carbon;
 use DateTimeInterface;
+use Illuminate\Support\Facades\Log;
 use Spatie\EventSourcing\AggregateRoot;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -15,6 +16,16 @@ use Prooph\EventStore\ResolvedEvent;
 
 class Lese
 {
+    protected $eventStoreUrl;
+
+    public function __construct()
+    {
+        $url = parse_url(config('lese.http_url'));
+        $url = "{$url['scheme']}://{$url['host']}:{$url['port']}/web/index.html#";
+
+        $this->eventStoreUrl = $url;
+    }
+
     public function recordedEventToStoredEvent(RecordedEvent $event)
     {
         $metaModel = new StubModel(['meta_data' => $event->metadata() ?: null]);
@@ -29,7 +40,8 @@ class Lese
         ]);
     }
 
-    public function eventDataToStoredEvent(EventData $event, string $uuid, int $number) {
+    public function eventDataToStoredEvent(EventData $event, string $uuid, int $number)
+    {
         $metaModel = new StubModel(['meta_data' => $event->metadata() ?: null]);
 
         return new StoredEvent([
@@ -42,31 +54,47 @@ class Lese
         ]);
     }
 
-    public function onEventReceived(ResolvedEvent $event) {
-
+    public function onEventReceived(ResolvedEvent $event)
+    {
+        return $this->logEvent($event, 'Received');
     }
 
-    public function onEventProcessed(ResolvedEvent $event) {
-
+    public function onEventProcessed(ResolvedEvent $event)
+    {
+        return $this->logEvent($event, 'Processed');
     }
 
-    public function onEventFailed(ResolvedEvent $event) {
-
+    public function onEventFailed(ResolvedEvent $event)
+    {
+        return $this->logEvent($event, 'Failed');
     }
 
-    public function shouldSkipEvent() {
+    protected function logEvent(ResolvedEvent $event, $state)
+    {
+        $event = $event->event();
 
+        $context = ['type' => $event->eventType()];
+
+        Log::info("{$state} {$this->eventStoreUrl}/streams/{$event->eventStreamId()}/{$event->eventNumber()}", $context);
     }
 
-    public function extractUuid($event) {
+    public function shouldSkipEvent(ResolvedEvent $event)
+    {
+        return false;
+    }
+
+    public function extractUuid($event)
+    {
         return Str::before($event->originalStreamName(), '-'); // @todo remove $ce- so this works
     }
 
-    public function aggregateToStream(AggregateRoot $aggregate, string $uuid) {
+    public function aggregateToStream(AggregateRoot $aggregate, string $uuid)
+    {
         return $this->aggregateToCategory($aggregate) . '-' . $uuid;
     }
 
-    public function aggregateToSnapshotStream(AggregateRoot $aggregate, string $uuid) {
+    public function aggregateToSnapshotStream(AggregateRoot $aggregate, string $uuid)
+    {
         return '$' . $this->aggregateToCategory($aggregate) . '-' . $uuid . '-snapshot';
     }
 
@@ -79,7 +107,7 @@ class Lese
         }
 
         $base = class_basename($class);
-        $category = Str::replaceLast('AggregateRoot', '', $base);
+        $category = Str::replaceLast('Aggregate', '', $base);
 
         return Str::snake($category);
     }

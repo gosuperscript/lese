@@ -7,7 +7,7 @@ use Amp\Success;
 use Carbon\Carbon;
 use DateTimeImmutable;
 use DigitalRisks\Lese\Handlers\OnEvent;
-use DigitalRisks\Lese\Tests\TestClasses\AccountAggregateRoot;
+use DigitalRisks\Lese\Tests\TestClasses\AccountAggregate;
 use DigitalRisks\Lese\Tests\TestClasses\BalanceProjector;
 use DigitalRisks\Lese\Tests\TestClasses\BrokeReactor;
 use DigitalRisks\Lese\Tests\TestClasses\MoneyAddedEvent;

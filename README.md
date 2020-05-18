@@ -14,11 +14,11 @@ php artisan vendor:publish --provider="DigitalRisks\Lese\LeseServiceProvider" --
 
 ## @todo
 
-* [ ] Callbacks for received, processed, failed
 * [ ] Support reading from $all stream or a user stream
 * [ ] Ignore events
 * [ ] Metadata callbacks
 * [ ] Documentation
+* [X] Callbacks for received, processed, failed
 * [X] Separate repo and package
 * [x] Support reads larger than 4096 events (use yield?)
 * [x] Callbacks for aggregate stream, aggregate snapshots

@@ -12,7 +12,7 @@ use DigitalRisks\Lese\EventStoreSnapshotRepository;
 use ReflectionClass;
 use ReflectionProperty;
 
-class AccountAggregateRoot extends AggregateRoot
+class AccountAggregate extends AggregateRoot
 {
     public int $balance = 0;
 

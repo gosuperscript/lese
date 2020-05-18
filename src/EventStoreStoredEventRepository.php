@@ -65,7 +65,7 @@ class EventStoreStoredEventRepository implements StoredEventRepository
      */
     public function retrieveAllStartingFrom(int $startingFrom, string $uuid = null): LazyCollection
     {
-        throw_if($this->all === '$all' && $startingFrom > 0, 'Starting from not valid for $all stream');
+        throw_if($this->all === '$all' && $startingFrom > 0, new InvalidArgumentException('Starting from not valid for $all stream'));
 
         $startingFrom = max($startingFrom - 1, 0); // if we wanted to start from 1, we actually mean event 0
 

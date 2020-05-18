@@ -2,7 +2,7 @@
 
 namespace DigitalRisks\Lese\Tests;
 
-use DigitalRisks\Lese\Tests\TestClasses\AccountAggregateRoot;
+use DigitalRisks\Lese\Tests\TestClasses\AccountAggregate;
 use Spatie\EventSourcing\Snapshots\EloquentSnapshot;
 
 class AggregateRootTest extends TestCase
@@ -19,8 +19,8 @@ class AggregateRootTest extends TestCase
     /** @test */
     public function when_retrieving_an_aggregate_root_all_events_will_be_replayed_to_it()
     {
-        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregateRoot $aggregateRoot */
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
+        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregate $aggregateRoot */
+        $aggregateRoot = AccountAggregate::retrieve($this->aggregateUuid);
 
         $aggregateRoot
             ->addMoney(100)
@@ -29,7 +29,7 @@ class AggregateRootTest extends TestCase
 
         $aggregateRoot->persist();
 
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
+        $aggregateRoot = AccountAggregate::retrieve($this->aggregateUuid);
 
         $this->assertEquals(300, $aggregateRoot->balance);
     }
@@ -37,8 +37,8 @@ class AggregateRootTest extends TestCase
     /** @test */
     public function when_retrieving_an_aggregate_root_all_events_will_be_replayed_to_it_with_small_read_size()
     {
-        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregateRoot $aggregateRoot */
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
+        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregate $aggregateRoot */
+        $aggregateRoot = AccountAggregate::retrieve($this->aggregateUuid);
 
         $aggregateRoot
             ->addMoney(100)
@@ -48,7 +48,7 @@ class AggregateRootTest extends TestCase
         $aggregateRoot->persist();
 
         config()->set('lese.read_size', 3);
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
+        $aggregateRoot = AccountAggregate::retrieve($this->aggregateUuid);
 
         $this->assertEquals(300, $aggregateRoot->balance);
     }
@@ -56,8 +56,8 @@ class AggregateRootTest extends TestCase
     /** @test */
     public function restoring_an_aggregate_root_with_a_snapshot_restores_public_properties()
     {
-        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregateRoot $aggregateRoot */
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
+        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregate $aggregateRoot */
+        $aggregateRoot = AccountAggregate::retrieve($this->aggregateUuid);
 
         $aggregateRoot
             ->addMoney(100)
@@ -66,7 +66,7 @@ class AggregateRootTest extends TestCase
 
         $aggregateRoot->snapshot();
 
-        $aggregateRootRetrieved = AccountAggregateRoot::retrieve($this->aggregateUuid);
+        $aggregateRootRetrieved = AccountAggregate::retrieve($this->aggregateUuid);
 
         $this->assertEquals(3, $aggregateRootRetrieved->aggregateVersion());
         $this->assertEquals(300, $aggregateRootRetrieved->balance);
@@ -75,8 +75,8 @@ class AggregateRootTest extends TestCase
     /** @test */
     public function events_saved_after_the_snapshot_are_reconstituted()
     {
-        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregateRoot $aggregateRoot */
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
+        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregate $aggregateRoot */
+        $aggregateRoot = AccountAggregate::retrieve($this->aggregateUuid);
 
         $aggregateRoot
             ->addMoney(100)
@@ -87,7 +87,7 @@ class AggregateRootTest extends TestCase
         $aggregateRoot->snapshot();
         $aggregateRoot->addMoney(100)->persist();
 
-        $aggregateRootRetrieved = AccountAggregateRoot::retrieve($this->aggregateUuid);
+        $aggregateRootRetrieved = AccountAggregate::retrieve($this->aggregateUuid);
 
         $this->assertEquals(4, $aggregateRootRetrieved->aggregateVersion());
         $this->assertEquals(400, $aggregateRootRetrieved->balance);
@@ -96,8 +96,8 @@ class AggregateRootTest extends TestCase
     /** @test */
     public function when_retrieving_an_aggregate_root_all_events_will_be_replayed_to_it_in_the_correct_order()
     {
-        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregateRoot $aggregateRoot */
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
+        /** @var \Spatie\EventSourcing\Tests\TestClasses\AggregateRoots\AccountAggregate $aggregateRoot */
+        $aggregateRoot = AccountAggregate::retrieve($this->aggregateUuid);
 
         $aggregateRoot
             ->multiplyMoney(5)
@@ -105,7 +105,7 @@ class AggregateRootTest extends TestCase
 
         $aggregateRoot->persist();
 
-        $aggregateRoot = AccountAggregateRoot::retrieve($this->aggregateUuid);
+        $aggregateRoot = AccountAggregate::retrieve($this->aggregateUuid);
 
         $this->assertEquals(100, $aggregateRoot->balance);
     }

@@ -29,13 +29,19 @@ class OnEvent implements EventAppearedOnPersistentSubscription
     public function __invoke(EventStorePersistentSubscription $subscription, ResolvedEvent $resolvedEvent, ?int $retryCount = null): Promise
     {
         try {
+            $this->lese->onEventReceived($resolvedEvent);
+
             $storedEvent = $this->lese->recordedEventToStoredEvent($resolvedEvent->event());
 
             $storedEvent->handle();
 
             $subscription->acknowledge($resolvedEvent);
+
+            $this->lese->onEventProcessed($resolvedEvent);
         }
         catch (Exception $e) {
+            $this->lese->onEventFailed($resolvedEvent);
+
             report($e);
 
             $subscription->fail($resolvedEvent, PersistentSubscriptionNakEventAction::unknown(), $e->getMessage());
