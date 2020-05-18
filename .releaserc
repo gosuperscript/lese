@@ -1,0 +1,7 @@
+{
+    "verifyConditions": [
+        "@semantic-release/github"
+    ],
+    "getLastRelease": "@semantic-release/git",
+    "publish": "@semantic-release/github"
+}
