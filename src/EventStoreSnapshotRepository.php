@@ -32,8 +32,6 @@ class EventStoreSnapshotRepository implements SnapshotRepository
             $this->lese->aggregateToSnapshotStream($this->aggregate, $aggregateUuid),
             -1,
             1,
-            true,
-            new UserCredentials('admin', 'changeit'),
         );
 
         if ($slice->status()->name() === 'StreamNotFound') {
@@ -65,7 +63,6 @@ class EventStoreSnapshotRepository implements SnapshotRepository
             $this->lese->aggregateToSnapshotStream($this->aggregate, $snapshot->aggregateUuid),
             ExpectedVersion::ANY,
             [$event],
-            new UserCredentials('admin', 'changeit'),
         );
 
         return $snapshot;
