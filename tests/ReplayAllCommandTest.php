@@ -29,26 +29,13 @@ class ReplayAllCommandTest extends TestCase
     }
 
     /** @test */
-    public function it_will_replay_events_to_the_given_projectors()
-    {
-        $projector = Mockery::mock(BalanceProjector::class.'[onMoneyAdded]');
-        $projector->shouldReceive('onMoneyAdded')->andReturnNull()->times(3);
-
-        Projectionist::addProjector($projector);
-
-        $this->artisan('event-sourcing:replay', ['projector' => [get_class($projector)]])
-            ->expectsOutput('Replaying 3 events...')
-            ->assertExitCode(0);
-    }
-
-    /** @test */
     public function it_cant_replay_events_starting_from_a_specific_number()
     {
         $projector = Mockery::mock(BalanceProjector::class.'[onMoneyAdded]');
 
         Projectionist::addProjector($projector);
 
-        // $this->expectException(InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         $this->artisan('event-sourcing:replay', ['projector' => [get_class($projector)], '--from' => 2]);
     }

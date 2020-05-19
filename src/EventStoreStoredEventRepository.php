@@ -72,21 +72,24 @@ class EventStoreStoredEventRepository implements StoredEventRepository
         return $this->streamEventsToStoredEvents($this->all, $startingFrom);
     }
 
+    /**
+     * @todo Should this support $all or guide people to do https://github.com/EventStore/EventStore/issues/718#issuecomment-317355088
+     * @todo Support https://github.com/EventStore/EventStore/pull/2009 for EventStore 6 once released
+     */
     protected function streamEventsToStoredEvents($stream, $from)
     {
         return LazyCollection::make(function () use ($stream, $from) {
             do {
-                $slice = $this->eventstore->readStreamEventsForward(
-                    $stream,
-                    $from,
-                    $this->read_size,
-                    true,
-                );
+                $slice = $stream == '$all' ?
+                    $this->eventstore->readAllEventsForward(Position::start(), $this->read_size) :
+                    $this->eventstore->readStreamEventsForward($stream, $from, $this->read_size);
 
                 foreach ($slice->events() as $event) {
-                    yield $this->lese->recordedEventToStoredEvent($event->event());
+                    if (!$this->lese->shouldSkipEvent($event)) {
+                        yield $this->lese->recordedEventToStoredEvent($event->event());
+                    }
                 }
-            } while (! $slice->isEndOfStream());
+            } while (!$slice->isEndOfStream());
         });
     }
 
@@ -139,7 +142,8 @@ class EventStoreStoredEventRepository implements StoredEventRepository
         return $this->getLatestEventNumber($this->lese->aggregateToStream($this->aggregate, $aggregateUuid));
     }
 
-    protected function getLatestEventNumber($stream) {
+    protected function getLatestEventNumber($stream)
+    {
         $slice = $this->eventstore->readStreamEventsBackward(
             $stream,
             -1,

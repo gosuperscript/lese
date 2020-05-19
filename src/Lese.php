@@ -80,7 +80,9 @@ class Lese
 
     public function shouldSkipEvent(ResolvedEvent $event)
     {
-        return false;
+        $type = $event->event()->eventType();
+
+        return Str::startsWith($type, '$');
     }
 
     public function extractUuid($event)

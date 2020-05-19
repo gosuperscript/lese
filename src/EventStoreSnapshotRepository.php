@@ -53,7 +53,7 @@ class EventStoreSnapshotRepository implements SnapshotRepository
 
         $event = new EventData(
             EventId::generate(),
-            get_class($snapshot),
+            '$' . get_class($snapshot),
             true,
             json_encode($snapshot->state),
             json_encode($metadata)

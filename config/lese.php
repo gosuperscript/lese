@@ -9,7 +9,7 @@ return [
     'group' => env('EVENTSTORE_SUBSCRIPTION_GROUP', env('APP_NAME', 'laravel')),
     'aggregate_category_map' => [],
     'all' => env('EVENTSTORE_ALL', '$all'),
-    'read_size' => env('EVENTSTORE_READ_SIZE', 4096),
+    'read_size' => env('EVENTSTORE_READ_SIZE', 512),
     'batch_size' => env('EVENTSTORE_BATCH_SIZE', 4096),
     'lese_class' => env('EVENTSTORE_LESE_CLASS', Lese::class),
 ];
