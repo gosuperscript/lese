@@ -1,3 +1,5 @@
+UNDER ACTIVE DEVELOPMENT
+
 # Laravel Event Sourcing and Eventstore (lese) Bridge
 
 Or German for `read` which is somewhat applicable to Event Sourcing. It's almost a good name.
