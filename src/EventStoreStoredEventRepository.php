@@ -5,6 +5,7 @@ namespace DigitalRisks\Lese;
 use BadMethodCallException;
 use Carbon\Carbon;
 use DateTimeInterface;
+use DigitalRisks\Lese\MetaData\HasMetaData;
 use Illuminate\Support\LazyCollection;
 use InvalidArgumentException;
 use Prooph\EventStore\EventData;
@@ -115,7 +116,9 @@ class EventStoreStoredEventRepository implements StoredEventRepository
 
         $dataEvents = collect($events)->map(function ($event) {
             $json = app(EventSerializer::class)->serialize(clone $event);
-            $metadata = '{}';
+            dump($json);
+            $metadata = $event instanceof HasMetaData ? json_encode($event->collectMetaData()) : '{}';
+
             return new EventData(EventId::generate(), get_class($event), true, $json, $metadata);
         });
 
