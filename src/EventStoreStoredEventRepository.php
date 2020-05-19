@@ -116,7 +116,6 @@ class EventStoreStoredEventRepository implements StoredEventRepository
 
         $dataEvents = collect($events)->map(function ($event) {
             $json = app(EventSerializer::class)->serialize(clone $event);
-            dump($json);
             $metadata = $event instanceof HasMetaData ? json_encode($event->collectMetaData()) : '{}';
 
             return new EventData(EventId::generate(), get_class($event), true, $json, $metadata);
