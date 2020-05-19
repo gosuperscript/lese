@@ -24,4 +24,5 @@ jobs:
       run: vendor/bin/phpunit
 
     - name: Release
-      run: npx semantic-release@15.13.27
+      run: npx semantic-release
+
