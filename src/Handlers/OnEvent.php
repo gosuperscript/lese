@@ -23,6 +23,7 @@ class OnEvent implements EventAppearedOnPersistentSubscription
 
     public function __construct(Lese $lese)
     {
+        dump(get_class($lese));
         $this->lese = $lese;
     }
 

@@ -1,29 +1,59 @@
-UNDER ACTIVE DEVELOPMENT
-
 # Laravel Event Sourcing and Eventstore (lese) Bridge
 
 Or German for `read` which is somewhat applicable to Event Sourcing. It's almost a good name.
 
-This package swaps out the Event and Snapshot storage model for [Laravel Event Souring](https://docs.spatie.be/laravel-event-sourcing/v1/getting-familiar-with-event-sourcing/introduction) with [EventStore](https://eventstore.com/). 
+This package swaps out the Event and Snapshot storage model for [Laravel Event Souring](https://docs.spatie.be/laravel-event-sourcing/v1/getting-familiar-with-event-sourcing/introduction) with [EventStore](https://eventstore.com/). EventStore has a few advantages over a database in that it is purpose built for event sourcing. 
 
-In addition it provides a console command to subscribe to persistent subscriptions to fire events in your application that are from other systems. This can be useful in a microservice architecture.
+The package also includes a subscribe command so that you may listen to events origination from other services in your system. 
 
 ## Installation
 
-composer require digitalrisks/lese:^1.0
+First of all let's bring in the package and Laravel Event Sourcing into our Laravel app. 
 
+```bash
+composer require digitalrisks/lese
+```
+
+Then publish the Laravel Event Sourcing and Lese configuration files.
+
+```bash
+php artisan vendor:publish --provider="Spatie\EventSourcing\EventSourcingServiceProvider" --tag="config"
 php artisan vendor:publish --provider="DigitalRisks\Lese\LeseServiceProvider" --tag="config"
+```
 
-## @todo
+Then jump into `config/event-sourcing.php` to configure EventStore as our event and snapshot storage repositories.
 
-* [ ] Metadata callbacks
-* [ ] Documentation
-* [x] Support reading from $all stream or a user stream
-* [x] Ignore events
-* [x] Callbacks for received, processed, failed
-* [x] Separate repo and package
-* [x] Support reads larger than 4096 events (use yield?)
-* [x] Callbacks for aggregate stream, aggregate snapshots
-* [x] Refactor ResolvedEvent to StoredEvent
-* [x] Use env connection settings
-* [x] persist to persistMany instead of other way round
+```php
+    /*
+     * This class is responsible for storing events. To add extra behaviour you
+     * can change this to a class of your own. The only restriction is that
+     * it should implement \Spatie\EventSourcing\StoredEventRepository.
+     */
+    'stored_event_repository' => \DigitalRisks\Lese\EventStoreStoredEventRepository::class,
+
+    /*
+     * This class is responsible for storing snapshots. To add extra behaviour you
+     * can change this to a class of your own. The only restriction is that
+     * it should implement \Spatie\EventSourcing\StoredEventRepository.
+     */
+    'snapshot_repository' => \DigitalRisks\Lese\EventStoreSnapshotRepository::class,
+```
+
+## Configuration
+
+This is the default content of the config file that will be published at `config/lese.php`
+
+```php
+return [
+    'tcp_url' => env('EVENTSTORE_TCP_URL', 'tcp://admin:changeit@localhost:1113'),
+    'http_url' => env('EVENTSTORE_HTTP_URL', 'http://admin:changeit@localhost:2113'),
+    'subscription_streams' => array_filter(explode(',', env('EVENTSTORE_SUBSCRIPTION_STREAMS'))),
+    'group' => env('EVENTSTORE_SUBSCRIPTION_GROUP', env('APP_NAME', 'laravel')),
+    'aggregate_category_map' => [],
+    'all' => env('EVENTSTORE_ALL', '$all'),
+    'read_size' => env('EVENTSTORE_READ_SIZE', 4096),
+    'batch_size' => env('EVENTSTORE_BATCH_SIZE', 4096),
+    'lese_class' => env('EVENTSTORE_LESE_CLASS', DigitalRisks\Lese\Lese::class),
+];
+```
+
