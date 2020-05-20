@@ -140,6 +140,8 @@ class MoneyAdded implements ShouldBeStored
 And fire it off:
 
 ```php
+<?php
+
 event(new MoneyAdded('21410-81231', 100))
 ```
 
@@ -322,7 +324,7 @@ class MoneyAdded implements ShouldBeStored, HasMetaData
 
 ## Changelog
 
-Please see [CHANGELOG](releases) for more information what has changed recently.
+Please see [CHANGELOG](../../releases) for more information what has changed recently.
 
 ## Contributing
 
