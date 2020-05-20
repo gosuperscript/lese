@@ -303,6 +303,12 @@ php artisan event-sourcing:reset
 
 > Careful: When resetting persistent subscriptions, it will start from the first event again. If you have reactors, you should go into the eventstore admin and set the `start from` value to the event number you want to start from.
 
+And finally start the subscribe process
+
+```bash
+php artisan event-sourcing:subscribe
+```
+
 ## Event Metadata
 
 Metadata can help trace events around your system. You can include any of the following traits on your event to attach metadata automatically
