@@ -8,6 +8,8 @@ use DigitalRisks\LaravelEventStore\Console\Commands\EventStoreWorkerThread;
 use DigitalRisks\LaravelEventStore\Contracts\ShouldBeStored;
 use DigitalRisks\LaravelEventStore\EventStore;
 use DigitalRisks\LaravelEventStore\Listeners\SendToEventStoreListener;
+use DigitalRisks\Lese\Commands\EventStoreResetCommand;
+use DigitalRisks\Lese\Commands\EventStoreSubscribeCommand;
 use DigitalRisks\Lese\Tests\TestClasses\AccountAggregateRoot;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider as LaravelServiceProvider;
@@ -46,6 +48,7 @@ class LeseServiceProvider extends LaravelServiceProvider
 
             $this->commands([
                 EventStoreSubscribeCommand::class,
+                EventStoreResetCommand::class,
             ]);
         }
 

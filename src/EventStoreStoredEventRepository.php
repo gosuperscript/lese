@@ -112,26 +112,30 @@ class EventStoreStoredEventRepository implements StoredEventRepository
 
     public function persistMany(array $events, string $uuid = null, int $aggregateVersion = null): LazyCollection
     {
-        $storedEvents = [];
-
-        $dataEvents = collect($events)->map(function ($event) {
+        $transformedEvents = collect($events)->map(function ($event) use ($uuid) {
             $json = app(EventSerializer::class)->serialize(clone $event);
             $metadata = $event instanceof HasMetaData ? json_encode($event->collectMetaData()) : '{}';
+            $metaModel = new StubModel(['meta_data' => $metadata ?: null]);
 
-            return new EventData(EventId::generate(), get_class($event), true, $json, $metadata);
+            return [
+                'data' => new EventData(EventId::generate(), get_class($event), true, $json, $metadata),
+                'stored' => new StoredEvent([
+                    'event_properties' => $json,
+                    'aggregate_uuid' => $uuid,
+                    'event_class' => get_class($event),
+                    'meta_data' => new SchemalessAttributes($metaModel, 'meta_data'),
+                    'created_at' => Carbon::now(),
+                ])
+            ];
         });
 
         $this->eventstore->appendToStream(
             $this->lese->aggregateToStream($this->aggregate, $uuid),
             ExpectedVersion::ANY,
-            $dataEvents->toArray(),
+            $transformedEvents->pluck('data')->toArray(),
         );
 
-        $storedEvents = $dataEvents->map(function ($event) use ($uuid, $aggregateVersion) {
-            return $this->lese->eventDataToStoredEvent($event, $uuid, $aggregateVersion++);
-        });
-
-        return new LazyCollection($storedEvents);
+        return new LazyCollection($transformedEvents->pluck('stored'));
     }
 
     public function update(StoredEvent $storedEvent): StoredEvent

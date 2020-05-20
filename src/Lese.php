@@ -40,20 +40,6 @@ class Lese
         ]);
     }
 
-    public function eventDataToStoredEvent(EventData $event, string $uuid, int $number)
-    {
-        $metaModel = new StubModel(['meta_data' => $event->metadata() ?: null]);
-
-        return new StoredEvent([
-            'id' => $number,
-            'event_properties' => $event->data(),
-            'aggregate_uuid' => $uuid,
-            'event_class' => $event->eventType(),
-            'meta_data' => new SchemalessAttributes($metaModel, 'meta_data'),
-            'created_at' => Carbon::now(),
-        ]);
-    }
-
     public function onEventReceived(ResolvedEvent $event)
     {
         return $this->logEvent($event, 'Received');

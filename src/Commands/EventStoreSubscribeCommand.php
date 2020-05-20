@@ -1,6 +1,6 @@
 <?php
 
-namespace DigitalRisks\Lese;
+namespace DigitalRisks\Lese\Commands;
 
 use Amp\Loop;
 use Amp\Promise;
