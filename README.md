@@ -72,10 +72,24 @@ return [
 
     /**
      * By default Aggregate classes are mapped to a category name based on their
-     * class name. Example AccountAggregate would be published to an account
-     * stream. This allows you to implicitly map classes to categories.
+     * class name. Example App\Aggregates\AccountAggregate would be published
+     * to an account-uuid stream. This allows you to implicitly map classes
+     * to categories so that it could be published to account_v2-uuid.
      */
     'aggregate_category_map' => [],
+
+    /**
+     * If not using aggregates, events need to mapped to streams to be
+     * published. An example would be the AccoutCreated event
+     * could be published on to the accounts stream.
+     */
+    'event_stream_map' => [],
+
+    /**
+     * If the event is not mapped to a stream,
+     * publish to this stream by default.
+     */
+    'default_stream' => env('EVENTSTORE_DEFAULT_STREAM', 'events'),
 
     /**
      * The stream to listen to when replaying all events. Instead of using
@@ -101,7 +115,7 @@ return [
      * Laravel Event Sourcing package. You can customise the class to include your
      * own business logic. It should extend DigitalRisks\Lese\Lese
      */
-    'lese_class' => env('EVENTSTORE_LESE_CLASS', App\EventStore\Lese::class),
+    'lese_class' => env('EVENTSTORE_LESE_CLASS', DigitalRisks\Lese\Lese::class),
 ];
 ```
 
@@ -244,6 +258,24 @@ php artisan event-sourcing:replay App\\Projectors\\AccountsProjector
 ```
 
 Learn more how to use Event Sourcing by following the guides at https://docs.spatie.be/laravel-event-sourcing/v3/introduction/
+
+## Aggregates
+
+> If you're not using aggregates, you can skip this section.
+
+In order for the EventStore repositories to fetch the events and/or snapshots related to an aggregate, it needs to know about the aggregate. To do this we simply override the two methods below to initiate the repostiory and pass in the aggregate.
+
+```php
+protected function getStoredEventRepository(): StoredEventRepository
+{
+    return resolve(EventStoreStoredEventRepository::class, ['aggregate' => $this]);
+}
+
+protected function getSnapshotRepository(): SnapshotRepository
+{
+    return resolve(EventStoreSnapshotRepository::class, ['aggregate' => $this]);
+}
+```
 
 ## Subscribing to Streams
 

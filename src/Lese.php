@@ -13,6 +13,7 @@ use Prooph\EventStore\RecordedEvent;
 use Spatie\EventSourcing\StoredEvent;
 use Spatie\SchemalessAttributes\SchemalessAttributes;
 use Prooph\EventStore\ResolvedEvent;
+use Spatie\EventSourcing\ShouldBeStored;
 
 class Lese
 {
@@ -76,6 +77,17 @@ class Lese
         return $this->aggregateToCategory($aggregate) . '-' . $uuid;
     }
 
+    public function eventToStream(ShouldBeStored $event)
+    {
+        $class = get_class($event);
+
+        if ($map = config('lese.event_category_map.' . $class)) {
+            return $map;
+        }
+
+        return config('lese.default_stream');
+    }
+
     public function aggregateToSnapshotStream(AggregateRoot $aggregate, string $uuid)
     {
         return '$' . $this->aggregateToCategory($aggregate) . '-' . $uuid . '-snapshot';
@@ -90,7 +102,7 @@ class Lese
         }
 
         $base = class_basename($class);
-        $category = Str::replaceLast('Aggregate', '', $base);
+        $category = Str::before($base, 'Aggregate');
 
         return Str::snake($category);
     }

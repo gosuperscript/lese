@@ -107,35 +107,48 @@ class EventStoreStoredEventRepository implements StoredEventRepository
 
     public function persist(ShouldBeStored $event, string $uuid = null, int $aggregateVersion = null): StoredEvent
     {
-        return $this->persistMany([$event], $uuid, $aggregateVersion)[0];
+        return $this->persistMany([$event], $uuid, $aggregateVersion)->first();
     }
 
     public function persistMany(array $events, string $uuid = null, int $aggregateVersion = null): LazyCollection
     {
-        $transformedEvents = collect($events)->map(function ($event) use ($uuid) {
+        // Submit to EventStore
+        $byStream = collect($events)->groupBy(function (ShouldBeStored $event) use ($uuid) {
+            return $this->aggregate ? $this->lese->aggregateToStream($this->aggregate, $uuid) : $this->lese->eventToStream($event);
+        });
+
+        foreach ($byStream as $stream => $events)
+        {
+            $dataEvents = $events->map(function (ShouldBeStored $event) {
+                $json = app(EventSerializer::class)->serialize(clone $event);
+                $metadata = $event instanceof HasMetaData ? json_encode($event->collectMetaData()) : '{}';
+
+                return new EventData(EventId::generate(), get_class($event), true, $json, $metadata);
+            });
+
+            $this->eventstore->appendToStream(
+                $stream,
+                ExpectedVersion::ANY,
+                $dataEvents->toArray(),
+            );
+        }
+
+        // Map to StoredEvents
+        $storedEvents = $events->map(function (ShouldBeStored $event) use ($uuid, $aggregateVersion) {
             $json = app(EventSerializer::class)->serialize(clone $event);
             $metadata = $event instanceof HasMetaData ? json_encode($event->collectMetaData()) : '{}';
             $metaModel = new StubModel(['meta_data' => $metadata ?: null]);
 
-            return [
-                'data' => new EventData(EventId::generate(), get_class($event), true, $json, $metadata),
-                'stored' => new StoredEvent([
-                    'event_properties' => $json,
-                    'aggregate_uuid' => $uuid,
-                    'event_class' => get_class($event),
-                    'meta_data' => new SchemalessAttributes($metaModel, 'meta_data'),
-                    'created_at' => Carbon::now(),
-                ])
-            ];
+            return new StoredEvent([
+                'event_properties' => $json,
+                'aggregate_uuid' => $uuid ?? '',
+                'event_class' => get_class($event),
+                'meta_data' => new SchemalessAttributes($metaModel, 'meta_data'),
+                'created_at' => Carbon::now(),
+            ]);
         });
 
-        $this->eventstore->appendToStream(
-            $this->lese->aggregateToStream($this->aggregate, $uuid),
-            ExpectedVersion::ANY,
-            $transformedEvents->pluck('data')->toArray(),
-        );
-
-        return new LazyCollection($transformedEvents->pluck('stored'));
+        return new LazyCollection($storedEvents);
     }
 
     public function update(StoredEvent $storedEvent): StoredEvent
