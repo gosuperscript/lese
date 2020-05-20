@@ -85,11 +85,6 @@ class Lese
         return Str::startsWith($type, '$');
     }
 
-    public function extractUuid($event)
-    {
-        return Str::before($event->originalStreamName(), '-'); // @todo remove $ce- so this works
-    }
-
     public function aggregateToStream(AggregateRoot $aggregate, string $uuid)
     {
         return $this->aggregateToCategory($aggregate) . '-' . $uuid;

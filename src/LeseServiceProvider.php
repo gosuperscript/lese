@@ -49,7 +49,6 @@ class LeseServiceProvider extends LaravelServiceProvider
             ]);
         }
 
-        dump(config('lese.lese_class', Lese::class));
         $this->app->bind(Lese::class, config('lese.lese_class', Lese::class));
 
         $this->bindTcpEventStore();

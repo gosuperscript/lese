@@ -32,9 +32,11 @@ class OnEvent implements EventAppearedOnPersistentSubscription
         try {
             $this->lese->onEventReceived($resolvedEvent);
 
-            $storedEvent = $this->lese->recordedEventToStoredEvent($resolvedEvent->event());
+            if (!$this->lese->shouldSkipEvent($resolvedEvent)) {
+                $storedEvent = $this->lese->recordedEventToStoredEvent($resolvedEvent->event());
 
-            $storedEvent->handle();
+                $storedEvent->handle();
+            }
 
             $subscription->acknowledge($resolvedEvent);
 
