@@ -6,6 +6,7 @@ use BadMethodCallException;
 use Carbon\Carbon;
 use DateTimeInterface;
 use DigitalRisks\Lese\MetaData\HasMetaData;
+use ErrorException;
 use Illuminate\Support\LazyCollection;
 use InvalidArgumentException;
 use Prooph\EventStore\EventData;
@@ -23,8 +24,10 @@ use Spatie\SchemalessAttributes\SchemalessAttributes;
 use Illuminate\Database\Eloquent\Model;
 use Prooph\EventStore\Internal\Consts;
 use Illuminate\Support\Str;
+use Prooph\EventStore\AllEventsSlice;
 use Spatie\EventSourcing\Exceptions\InvalidStoredEvent;
 use Prooph\EventStore\EventStoreConnection;
+use Prooph\EventStore\ReadDirection;
 use Spatie\EventSourcing\AggregateRoot;
 
 class EventStoreStoredEventRepository implements StoredEventRepository
@@ -79,10 +82,12 @@ class EventStoreStoredEventRepository implements StoredEventRepository
      */
     protected function streamEventsToStoredEvents($stream, $from)
     {
+        $from = $stream === '$all' ? Position::start() : $from;
+
         return LazyCollection::make(function () use ($stream, $from) {
             do {
                 $slice = $stream == '$all' ?
-                    $this->eventstore->readAllEventsForward(Position::start(), $this->read_size) :
+                    $this->getAllStreamSlice($from, $this->read_size) :
                     $this->eventstore->readStreamEventsForward($stream, $from, $this->read_size);
 
                 foreach ($slice->events() as $event) {
@@ -90,8 +95,22 @@ class EventStoreStoredEventRepository implements StoredEventRepository
                         yield $this->lese->recordedEventToStoredEvent($event->event());
                     }
                 }
+
+                $from = $stream === '$all' ? $slice->nextPosition() : $slice->nextEventNumber();
             } while (!$slice->isEndOfStream());
         });
+    }
+
+    // Cater for https://github.com/prooph/event-store/issues/404
+    protected function getAllStreamSlice($from, $read_size)
+    {
+        try {
+            return $this->eventstore->readAllEventsForward($from, $this->read_size);
+        }
+        catch (ErrorException $e) {
+            throw_if($e->getMessage() !== 'Undefined variable: nextPosition', $e);
+            return new AllEventsSlice(ReadDirection::forward(), $from, $from, []);
+        }
     }
 
     /**
@@ -134,7 +153,7 @@ class EventStoreStoredEventRepository implements StoredEventRepository
         }
 
         // Map to StoredEvents
-        $storedEvents = $events->map(function (ShouldBeStored $event) use ($uuid, $aggregateVersion) {
+        $storedEvents = collect($events)->map(function (ShouldBeStored $event) use ($uuid, $aggregateVersion) {
             $json = app(EventSerializer::class)->serialize(clone $event);
             $metadata = $event instanceof HasMetaData ? json_encode($event->collectMetaData()) : '{}';
             $metaModel = new StubModel(['meta_data' => $metadata ?: null]);
@@ -163,6 +182,8 @@ class EventStoreStoredEventRepository implements StoredEventRepository
 
     protected function getLatestEventNumber($stream)
     {
+        if ($stream === '$all') return - 1;
+
         $slice = $this->eventstore->readStreamEventsBackward(
             $stream,
             -1,
@@ -174,6 +195,6 @@ class EventStoreStoredEventRepository implements StoredEventRepository
             return 0;
         }
 
-        return $slice->lastEventNumber() + 1; // ES starts from 0
+        return $slice->events()[0]->originalEvent()->eventNumber() + 1; // ES starts from 0
     }
 }

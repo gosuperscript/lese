@@ -47,7 +47,7 @@ class AggregateRootTest extends TestCase
 
         $aggregateRoot->persist();
 
-        config()->set('lese.read_size', 3);
+        config()->set('lese.read_size', 1);
         $aggregateRoot = AccountAggregate::retrieve($this->aggregateUuid);
 
         $this->assertEquals(300, $aggregateRoot->balance);

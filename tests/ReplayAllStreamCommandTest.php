@@ -19,13 +19,25 @@ use Spatie\EventSourcing\Facades\Projectionist;
 use Spatie\EventSourcing\Models\EloquentStoredEvent;
 use Spatie\EventSourcing\StoredEventRepository;
 
-class ReplayAllCommandTest extends TestCase
+class ReplayAllStreamCommandTest extends TestCase
 {
     public function setUp(): void
     {
         parent::setUp();
 
         $this->app->singleton(StoredEventRepository::class, EventStoreStoredEventRepository::class);
+    }
+
+    /** @test */
+    public function it_can_replay_all_events()
+    {
+        $projector = Mockery::spy(BalanceProjector::class.'[onMoneyAdded]');
+
+        Projectionist::addProjector($projector);
+
+        $this->artisan('event-sourcing:replay', ['projector' => [get_class($projector)]])
+            ->expectsOutput('Replaying -1 events...')
+            ->assertExitCode(0);
     }
 
     /** @test */

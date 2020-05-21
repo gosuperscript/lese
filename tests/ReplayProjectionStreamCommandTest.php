@@ -18,7 +18,7 @@ use Spatie\EventSourcing\Facades\Projectionist;
 use Spatie\EventSourcing\Models\EloquentStoredEvent;
 use Spatie\EventSourcing\StoredEventRepository;
 
-class ReplayCommandTest extends TestCase
+class ReplayProjectionStreamCommandTest extends TestCase
 {
     public function setUp(): void
     {
@@ -34,7 +34,11 @@ class ReplayCommandTest extends TestCase
         }
         $account->persist();
 
-        Mail::fake();
+        $account2 = AccountAggregate::retrieve($this->faker->uuid);
+        foreach (range(1, 3) as $i) {
+            $account2->addMoney(500);
+        }
+        $account2->persist();
 
         $this->app->singleton(StoredEventRepository::class, EventStoreStoredEventRepository::class);
     }
@@ -43,12 +47,12 @@ class ReplayCommandTest extends TestCase
     public function it_will_replay_events_to_the_given_projectors()
     {
         $projector = Mockery::mock(BalanceProjector::class.'[onMoneyAdded]');
-        $projector->shouldReceive('onMoneyAdded')->andReturnNull()->times(3);
+        $projector->shouldReceive('onMoneyAdded')->andReturnNull()->times(6);
 
         Projectionist::addProjector($projector);
 
         $this->artisan('event-sourcing:replay', ['projector' => [get_class($projector)]])
-            ->expectsOutput('Replaying 3 events...')
+            ->expectsOutput('Replaying 6 events...')
             ->assertExitCode(0);
     }
 
@@ -56,12 +60,12 @@ class ReplayCommandTest extends TestCase
     public function it_can_replay_events_starting_from_a_specific_number()
     {
         $projector = Mockery::mock(BalanceProjector::class.'[onMoneyAdded]');
-        $projector->shouldReceive('onMoneyAdded')->andReturnNull()->times(2);
+        $projector->shouldReceive('onMoneyAdded')->andReturnNull()->times(5);
 
         Projectionist::addProjector($projector);
 
         $this->artisan('event-sourcing:replay', ['projector' => [get_class($projector)], '--from' => 2])
-            ->expectsOutput('Replaying 2 events...')
+            ->expectsOutput('Replaying 5 events...')
             ->assertExitCode(0);
     }
 }
